@@ -78,6 +78,8 @@ def _closest_upts(etypes, eupts, pts):
 
 class PyFRObj:
     def __init__(self):
+        self.mpi_init = False
+
         self.ap = ArgumentParser(prog='pyfr')
         self.sp = self.ap.add_subparsers(dest='cmd', help='sub-command help')
 
@@ -105,6 +107,7 @@ class PyFRObj:
                            help='backend to use')
             p.add_argument('--progress', '-p', action='store_true',
                            help='show a progress bar')
+
 
     def parse(self, cmd_args):
         # Parse the arguments
@@ -220,12 +223,12 @@ class PyFRObj:
                 data.append(row)
 
             # Define info for saving to file
-            list_of_files = glob.glob(self.save_dir + '/*')
-            if len(list_of_files) == 0:
-                file_num = 0
-            else:
-                latest_file = max(list_of_files, key=os.path.getctime)
-                file_num = int(latest_file[-7:-3])
+            # list_of_files = glob.glob(self.save_dir + '/*')
+            # if len(list_of_files) == 0:
+            #     file_num = 0
+            # else:
+            #     latest_file = max(list_of_files, key=os.path.getctime)
+            #     file_num = int(latest_file[-7:-3])
 
             # Save data in desired format
             # Define freestream values for to be used for cylinder
@@ -241,13 +244,13 @@ class PyFRObj:
                 idx1, idx2 = self.loc_to_idx[i]
                 sol_data[idx1, idx2] = data[i][1]
 
-            file_num += 1
-            filename = self.save_dir + '/sol_data_' + str(file_num).zfill(4) + '.h5'
-            f = h5py.File(filename, 'w')
-            f['sol_data'] = sol_data
-            f['control_input'] = self.last_action
-            f['cost'] = np.linalg.norm(self.goal_state - sol_data.flatten())
-            f.close()
+            # file_num += 1
+            # filename = self.save_dir + '/sol_data_' + str(file_num).zfill(4) + '.h5'
+            # f = h5py.File(filename, 'w')
+            # f['sol_data'] = sol_data
+            # f['control_input'] = self.last_action
+            # f['cost'] = np.linalg.norm(self.goal_state - sol_data.flatten())
+            # f.close()
 
         return sol_data
 
@@ -281,7 +284,9 @@ class PyFRObj:
 
 
         # Manually initialise MPI
-        MPI.Init()
+        if not self.mpi_init:
+            self.mpi_init = True
+            MPI.Init()
 
         # Ensure MPI is suitably cleaned up
         register_finalize_handler()

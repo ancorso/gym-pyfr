@@ -9,11 +9,20 @@ from collections import deque
 class PyFREnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, discrete = False, n = 20, omega_min = -0.1, omega_max = 0.1):
         print("initiating")
+
+        self.discrete = discrete
+        self.omega_min = omega_min
+        self.omega_max = omega_max
+        self.d_omega = (self.omega_max - self.omega_min)/n
+
         # Setup the observation and action spaces
         self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(4, 256, 128), dtype=np.float64)
-        self.action_space = spaces.Box(low=-0.1, high=0.1, shape=(1,), dtype=np.float64)
+        if discrete:
+            self.action_space = spaces.Discrete(n)
+        else:
+            self.action_space = spaces.Box(low=omega_min, high=omega_max, shape=(1,), dtype=np.float64)
 
         # Build the pyf object run run things on
         self.pyfr = PyFRObj()
@@ -25,7 +34,6 @@ class PyFREnv(gym.Env):
         self.pyfr.process()
         self.pyfr.setup_dataframe()
         self.pyfr.solver.tlist = deque(range(int(self.pyfr.solver.tcurr), int(self.pyfr.solver.tlist[-1])))
-        print("tlist: ", self.pyfr.solver.tlist)
 
     def step(self, action):
         """
@@ -57,6 +65,9 @@ class PyFREnv(gym.Env):
                  use this for learning.
         """
         # Set action
+        if self.discrete:
+            action = self.omega_min + action*self.d_omega
+
         self.pyfr.take_action(action)
 
         # Step the simulation to the next timestep
@@ -71,11 +82,15 @@ class PyFREnv(gym.Env):
         # No info yet
         info = {"timestep":self.pyfr.solver.tcurr}
 
-        if episode_over:
-            self.pyfr.finalize()
         return ob, reward, episode_over, info
 
     # Return the state
     def reset(self):
         self.setup(self._cmd_args)
+        return self.pyfr.get_state()
+
+    def finalize(self):
+        self.pyfr.finalize()
+
+
 
