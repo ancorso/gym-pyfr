@@ -4,6 +4,7 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
 from gym_pyfr.envs.pyfr_obj import PyFRObj
+from collections import deque
 
 class PyFREnv(gym.Env):
     metadata = {'render.modes': ['human']}
@@ -19,9 +20,12 @@ class PyFREnv(gym.Env):
 
     def setup(self, cmd_args):
         print('parsing with cmd args: ', cmd_args)
+        self._cmd_args = cmd_args
         self.pyfr.parse(cmd_args)
         self.pyfr.process()
         self.pyfr.setup_dataframe()
+        self.pyfr.solver.tlist = deque(range(int(self.pyfr.solver.tcurr), int(self.pyfr.solver.tlist[-1])))
+        print("tlist: ", self.pyfr.solver.tlist)
 
     def step(self, action):
         """
@@ -52,7 +56,6 @@ class PyFREnv(gym.Env):
                  However, official evaluations of your agent are not allowed to
                  use this for learning.
         """
-        print("stepping")
         # Set action
         self.pyfr.take_action(action)
 
@@ -66,10 +69,13 @@ class PyFREnv(gym.Env):
         reward = self.pyfr.get_reward(ob)
 
         # No info yet
-        info = {}
+        info = {"timestep":self.pyfr.solver.tcurr}
+
+        if episode_over:
+            self.pyfr.finalize()
         return ob, reward, episode_over, info
 
     # Return the state
     def reset(self):
-        pass
+        self.setup(self._cmd_args)
 

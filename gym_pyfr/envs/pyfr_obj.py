@@ -26,6 +26,8 @@ from pyfr.solvers import get_solver
 from pyfr.util import subclasses
 from pyfr.writers import BaseWriter, get_writer_by_name, get_writer_by_extn
 
+from mpi4py import MPI
+
 def _closest_upts_bf(etypes, eupts, pts):
     for p in pts:
         # Compute the distances between each point and p
@@ -115,20 +117,22 @@ class PyFRObj:
 
     def setup_dataframe(self):
         self.elementscls = self.solver.system.elementscls
-        self.fmt = 'primitive' # all the configs had this as primitive
+
 
         # List of points to be sampled and format
         file = open('samp_pts.txt', 'r')
         self.pts = eval(file.read())
+        self.fmt = 'not primitive' # all the configs had this as primitive but i dont think it was used
 
         # Define directory where solution snapshots should be saved
-        self.save_dir = 'sol_data/'
+        self.save_dir = 'sol_data'
 
         f = h5py.File('base.h5', 'r')
         self.goal_state = np.array(f['sol_data']).flatten()
 
         # Initial omega
         self.solver.system.omega = 0
+        self.last_action = 0
 
         # MPI info
         comm, rank, root = get_comm_rank_root()
@@ -175,6 +179,7 @@ class PyFRObj:
     def take_action(self, omega):
         comm, rank, root = get_comm_rank_root()
         self.solver.system.omega = float(comm.bcast(omega, root=root))
+        self.last_action = omega
 
 
     def get_state(self):
@@ -236,30 +241,27 @@ class PyFRObj:
                 idx1, idx2 = self.loc_to_idx[i]
                 sol_data[idx1, idx2] = data[i][1]
 
-        print("sol data shape: ", sol_data.shape)
+            file_num += 1
+            filename = self.save_dir + '/sol_data_' + str(file_num).zfill(4) + '.h5'
+            f = h5py.File(filename, 'w')
+            f['sol_data'] = sol_data
+            f['control_input'] = self.last_action
+            f['cost'] = np.linalg.norm(self.goal_state - sol_data.flatten())
+            f.close()
+
         return sol_data
 
 
 
     def step(self):
-        if self.solver.tlist[0] == 0:
+        while self.solver.tlist[0] <= self.solver.tcurr:
             self.solver.advance_to(self.solver.tlist[0])
             self.solver.tlist.popleft()
 
-
-        # print("tlist: ", self.solver.tlist)
-        # self.solver.advance_to(self.solver.tlist[3])
-
-        print("\nadvancing to step ", self.solver.tlist[0])
         self.solver.advance_to(self.solver.tlist[0])
-        print("\ndone and at time ", self.solver.tlist[0])
 
         self.solver.tlist.popleft()
-        if self.solver.tlist:
-            return False
-        else:
-            self.finalize()
-            return True
+        return (not self.solver.tlist)
 
     def get_reward(self, state):
         return - np.linalg.norm(self.goal_state - state.flatten())
@@ -277,8 +279,6 @@ class PyFRObj:
 
             enable_prefork()
 
-        # Import but do not initialise MPI
-        from mpi4py import MPI
 
         # Manually initialise MPI
         MPI.Init()
