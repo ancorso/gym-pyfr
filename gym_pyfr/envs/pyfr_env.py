@@ -12,6 +12,7 @@ class PyFREnv(gym.Env):
     def __init__(self, discrete = False, n = 20, action_multiplier = 0.05):
         print("initiating")
 
+        self.action_multiplier = action_multiplier
         self.discrete = discrete
         self.omega_min = -2*action_multiplier
         self.omega_max = 2*action_multiplier
