@@ -64,7 +64,6 @@ class PyFREnv(gym.Env):
                  However, official evaluations of your agent are not allowed to
                  use this for learning.
         """
-        print("step called with: ", action)
         # Set action
         if self.discrete:
             action = self.omega_min + action*self.d_omega
@@ -79,6 +78,7 @@ class PyFREnv(gym.Env):
 
         # Get the reward
         reward = self.pyfr.get_reward(ob)
+        print("step called with: ", action, " got reward: ", r)
 
         # No info yet
         info = {"timestep":self.pyfr.solver.tcurr}
