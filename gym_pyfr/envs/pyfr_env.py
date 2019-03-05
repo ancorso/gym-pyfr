@@ -78,7 +78,7 @@ class PyFREnv(gym.Env):
 
         # Get the reward
         reward = self.pyfr.get_reward(ob)
-        print("step called with: ", action, " got reward: ", r)
+        print("step called with: ", action, " got reward: ", reward)
 
         # No info yet
         info = {"timestep":self.pyfr.solver.tcurr}
