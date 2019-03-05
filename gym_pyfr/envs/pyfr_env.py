@@ -9,12 +9,12 @@ from collections import deque
 class PyFREnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, discrete = False, n = 20, omega_min = -0.1, omega_max = 0.1):
+    def __init__(self, discrete = False, n = 20, action_multiplier = 0.05):
         print("initiating")
 
         self.discrete = discrete
-        self.omega_min = omega_min
-        self.omega_max = omega_max
+        self.omega_min = -2*action_multiplier
+        self.omega_max = 2*action_multiplier
         self.d_omega = (self.omega_max - self.omega_min)/n
 
         # Setup the observation and action spaces
@@ -22,7 +22,7 @@ class PyFREnv(gym.Env):
         if discrete:
             self.action_space = spaces.Discrete(n)
         else:
-            self.action_space = spaces.Box(low=omega_min, high=omega_max, shape=(1,), dtype=np.float64)
+            self.action_space = spaces.Box(low=-2, high=2, shape=(1,), dtype=np.float64)
 
         # Build the pyf object run run things on
         self.pyfr = PyFRObj()
@@ -67,6 +67,8 @@ class PyFREnv(gym.Env):
         # Set action
         if self.discrete:
             action = self.omega_min + action*self.d_omega
+        else:
+            action = self.action_multiplier*action
 
         self.pyfr.take_action(action)
 
