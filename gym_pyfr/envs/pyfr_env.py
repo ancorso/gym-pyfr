@@ -18,7 +18,7 @@ class PyFREnv(gym.Env):
         self.d_omega = (self.omega_max - self.omega_min)/n
 
         # Setup the observation and action spaces
-        self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(4, 256, 128), dtype=np.float64)
+        self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(128, 256, 4), dtype=np.float64)
         if discrete:
             self.action_space = spaces.Discrete(n)
         else:
@@ -64,6 +64,7 @@ class PyFREnv(gym.Env):
                  However, official evaluations of your agent are not allowed to
                  use this for learning.
         """
+        print("step called with: ", action)
         # Set action
         if self.discrete:
             action = self.omega_min + action*self.d_omega

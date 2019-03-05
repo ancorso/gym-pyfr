@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import gym
 import gym_pyfr
 env = gym.make('gym-pyfr-v0')
-env.setup(['restart', '-b', 'cuda','cylinder_visc.pyfrm', 'cyl-2d-p2-start.pyfrs', 'config.ini'])
+env.setup(['restart', '-b', 'openmp','cylinder_visc.pyfrm', 'cyl-2d-p2-start.pyfrs', 'config.ini'])
 
 # plt.figure()
 # CS = plt.contourf(env.pyfr.goal_state.reshape(128,256,4)[:,:,2]) #, cc, zz_miss)

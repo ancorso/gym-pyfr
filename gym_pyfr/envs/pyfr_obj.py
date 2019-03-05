@@ -286,7 +286,7 @@ class PyFRObj:
         # Manually initialise MPI
         if not self.mpi_init:
             self.mpi_init = True
-            MPI.Init()
+            # MPI.Init()
 
         # Ensure MPI is suitably cleaned up
         register_finalize_handler()
