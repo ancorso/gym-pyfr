@@ -7,7 +7,7 @@ from stable_baselines import DQN #Change for different policies
 from stable_baselines.bench import Monitor
 from monitor_callback import get_callback
 
-log_dir = "/usr/anthonycorso/dqn_log"  #Change for different policies
+log_dir = "/usr/anthonycorso/Dropbox/dqn_log"  #Change for different policies
 os.makedirs(log_dir, exist_ok=True)
 
 env = gym.make('gym-pyfr-v0', discrete = True, n=50, save_dir=log_dir) # change discrete setting for different policies
