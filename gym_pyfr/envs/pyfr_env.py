@@ -80,6 +80,8 @@ class PyFREnv(gym.Env):
 
 
     def step(self, action):
+        print(self.pyfr.tcurr)
+        
         # Set action
         if self.discrete:
             action = self.omega_min + action*self.d_omega
