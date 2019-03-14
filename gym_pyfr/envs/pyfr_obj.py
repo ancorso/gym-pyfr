@@ -8,6 +8,7 @@ import numpy as np
 import h5py
 import json
 import glob
+import os
 
 import mpi4py.rc
 mpi4py.rc.initialize = False
@@ -108,6 +109,8 @@ class PyFRObj:
             p.add_argument('--progress', '-p', action='store_true',
                            help='show a progress bar')
 
+        self.base_dir = os.path.dirname(__file__)
+
 
     def parse(self, cmd_args):
         # Parse the arguments
@@ -123,7 +126,7 @@ class PyFRObj:
 
 
         # List of points to be sampled and format
-        file = open('samp_pts.txt', 'r')
+        file = open(self.base_dir + '/samp_pts.txt', 'r')
         self.pts = eval(file.read())
         self.fmt = 'not primitive' # all the configs had this as primitive but i dont think it was used
 
@@ -148,7 +151,7 @@ class PyFRObj:
         plocs = [p.swapaxes(1, 2) for p in self.solver.system.ele_ploc_upts]
 
         # Load map from point to index
-        with open('loc_to_idx.json') as loc_to_idx:
+        with open(self.base_dir + '/loc_to_idx.json') as loc_to_idx:
             loc_to_idx_str = json.load(loc_to_idx,)
             self.loc_to_idx = dict()
             for key in loc_to_idx_str:
