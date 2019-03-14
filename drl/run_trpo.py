@@ -10,7 +10,7 @@ from monitor_callback import get_callback
 log_dir = "./trpo_log"  #Change for different policies
 os.makedirs(log_dir, exist_ok=True)
 
-env = gym.make('gym-pyfr-v0', save_dir=log_dir) # change discrete setting for different policies
+env = gym.make('gym-pyfr-v0',  discrete = True, n=50, save_dir=log_dir) # change discrete setting for different policies
 env.setup(['restart', '-b', 'cuda','cylinder_visc.pyfrm', 'cyl-2d-p2-start.pyfrs', 'config.ini'])
 env = Monitor(env, log_dir, allow_early_resets=True)
 env = DummyVecEnv([lambda: env]) # uncomment for other policies
