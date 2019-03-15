@@ -116,13 +116,17 @@ class PyFRObj:
 
     def parse(self, cmd_args):
         self.args = self.ap.parse_args(cmd_args)
+        if self.args.cfg:
+            self.cfg = Inifile.load(self.args.cfg)
+        else:
+            soln = NativeReader(self.args.soln)
+            self.cfg = Inifile(soln['config'])
 
     def set_baseline(self, baseline_file):
         self.baseline_file = baseline_file
 
     def process(self):
         self.args.process(self.args)
-
 
     def setup_dataframe(self):
         self.elementscls = self.solver.system.elementscls
@@ -179,14 +183,15 @@ class PyFRObj:
             )
 
     def save_solution(self, savedir, basename, t = 0):
-        self.ndims = self.solver.system.ndims
-        self.nvars = self.solver.system.nvars
-        writer = NativeWriter(intg, nvars, savedir, basename)
+        ndims = self.solver.system.ndims
+        nvars = self.solver.system.nvars
+        writer = NativeWriter(self.solver, nvars, savedir, basename, prefix='soln')
         fields = self.solver.system.elementscls.convarmap[ndims]
         stats = Inifile()
         stats.set('data', 'fields', ','.join(fields))
         stats.set('data', 'prefix', 'soln')
         self.solver.collect_stats(stats)
+        stats.set('solver-time-integrator', 'tcurr', str(t))
 
         metadata = dict(self.solver.cfgmeta,
                         stats=stats.tostr(),
@@ -316,9 +321,9 @@ class PyFRObj:
     def process_run(self, args):
         # can load from Inifile(string)
         # can also use inifile.set(section, option, value) to set things
-        
+
         self._process_common(
-            args, NativeReader(args.mesh), None, Inifile.load(args.cfg)
+            args, NativeReader(args.mesh), None, self.cfg
         )
 
 
@@ -330,11 +335,5 @@ class PyFRObj:
         if soln['mesh_uuid'] != mesh['mesh_uuid']:
             raise RuntimeError('Invalid solution for mesh.')
 
-        # Process the config file
-        if args.cfg:
-            cfg = Inifile.load(args.cfg)
-        else:
-            cfg = Inifile(soln['config'])
-
-        self._process_common(args, mesh, soln, cfg)
+        self._process_common(args, mesh, soln, self.cfg)
 

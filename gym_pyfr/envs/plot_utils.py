@@ -15,7 +15,7 @@ def plot_rewards_and_actions(rewards, actions, episode_str, filename):
     plt.plot(range(len(actions)), actions)
     plt.title('Episode ' + episode_str + ' Action')
     plt.xlabel('Iteration')
-    plt.ylabel('Reward')
+    plt.ylabel('Action')
 
     plt.savefig(filename)
 
