@@ -4,37 +4,28 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
 from gym_pyfr.envs.pyfr_obj import PyFRObj
+from gym_pyfr.envs.plot_utils import plot_rewards_and_actions, plot_state, make_gif
 from collections import deque
 from copy import copy
-import matplotlib.pyplot as plt
-
-def print_trace(rewards, actions, episode_str, filename):
-    plt.figure(figsize=(20,10))
-    plt.subplot(1,2,1)
-    plt.plot(range(len(rewards)), rewards)
-    plt.title('Episode ' + episode_str + ' Reward')
-    plt.xlabel('Iteration')
-    plt.ylabel('Reward')
-
-    plt.subplot(1,2,2)
-    plt.plot(range(len(actions)), actions)
-    plt.title('Episode ' + episode_str + ' Action')
-    plt.xlabel('Iteration')
-    plt.ylabel('Reward')
-
-    plt.savefig(filename)
-
 
 class PyFREnv(gym.Env):
     metadata = {'render.modes': ['human']}
 
     def __init__(self,
-                discrete = False,
-                n = 20,
-                action_multiplier = 0.01,
-                verbose = False,
-                save_dir = ".",
-                print_on_iteration = 100
+                mesh_file, # The location of the mesh used by PyFR
+                init_file, # The initial solution file *.pyfrs that PyFR uses to initialize
+                config_file, # The PyFR configuration file
+                baseline_file = None, # The baseline solution file to compare the state to (to compute reward)
+                backend = "cuda", # The PyFR backend
+                discrete = False, # Whether or not to discretize the action space
+                n = 20, # The number of actions to discretize the action space to
+                action_multiplier = 0.01, # Multiplier on the actions (the space is set from -2 to 2 so that initially there is not cutoff in the network)
+                verbose = False, # Whether or not to display more information
+                save_dir = ".", # The directory to save plots and
+                print_on_iteration = 100, # Frequency of printing stats when verbose is off
+                plot_best_episode = True, # Whether or not to plot the reward and action vs iteration and any new best rewards
+                save_epsiode_animation = False, # Whether or not to create an animation of each episode
+                animation_period = 1 # timesteps between animation frames
                 ):
 
         # Keep track of logging information
@@ -46,6 +37,9 @@ class PyFREnv(gym.Env):
         self.best_action_sequence = []
         self.best_episode = -1
         self.print_on_iteration = print_on_iteration
+        self.plot_best_episode_flag = plot_best_episode
+        self.save_epsiode_animation = save_epsiode_animation
+        self.animation_period = animation_period
 
         # Setup omega range
         self.action_multiplier = action_multiplier
@@ -57,31 +51,39 @@ class PyFREnv(gym.Env):
         self.discrete = discrete
         self.observation_space = spaces.Box(low=-float('inf'), high=float('inf'), shape=(128, 256, 4), dtype=np.float64)
         if discrete:
-            print("Initializing discrete action space with n=",n)
+            if self.verbose: print("Initializing discrete action space with n=",n)
             self.action_space = spaces.Discrete(n)
         else:
-            print("Initializing continuous action space with action_multiplier=",self.action_multiplier)
+            if self.verbose: print("Initializing continuous action space with action_multiplier=",self.action_multiplier)
             self.action_space = spaces.Box(low=-2, high=2, shape=(1,), dtype=np.float64)
 
         # Build the pyf object run run things on
         self.pyfr = PyFRObj()
 
-    def setup(self, cmd_args):
+        # Setup the pyfr object
+        self.mesh_file = mesh_file
+        self.init_file = init_file
+        self.config_file = config_file
+        self.baseline_file = baseline_file
+        self.backend = backend
+        self.setup()
+
+    def setup(self):
         self.episode += 1
-        print('parsing with cmd args: ', cmd_args)
-        self._cmd_args = cmd_args
+        cmd_args = ['restart', '-b', self.backend, self.mesh_file, self.init_file, self.config_file]
+        if self.verbose: print('parsing with cmd args: ', cmd_args)
         self.pyfr.parse(cmd_args)
+        self.pyfr.set_baseline(self.baseline_file)
         self.pyfr.process()
         self.pyfr.setup_dataframe()
-        self.pyfr.solver.tlist = deque(range(int(self.pyfr.solver.tcurr), int(self.pyfr.solver.tlist[-1])))
+        self.pyfr.solver.tlist = deque(range(int(self.pyfr.solver.tcurr), int(self.pyfr.solver.tlist[-1]) + 1))
         self.iteration = 0
         self.current_reward_sequence = []
         self.current_action_sequence = []
+        self.animation = []
 
 
     def step(self, action):
-        print(self.pyfr.tcurr)
-        
         # Set action
         if self.discrete:
             action = self.omega_min + action*self.d_omega
@@ -106,6 +108,10 @@ class PyFREnv(gym.Env):
         if episode_over or self.verbose or self.iteration % self.print_on_iteration == 0:
             print("Episode: ", self.episode, " Iteration: ", self.iteration, " Action: ", action, " Reward: ", reward)
 
+        # Plot if necessary
+        if self.save_epsiode_animation and self.iteration % self.animation_period == 0:
+            self.animation.append(plot_state(ob, 2, "Y-Velocity at Iteration " + str(self.iteration)))
+
         # update sequences and iterations
         self.iteration += 1
         self.current_action_sequence.append(action)
@@ -118,37 +124,45 @@ class PyFREnv(gym.Env):
         # Return the results of the step
         return ob, reward, episode_over, info
 
+    # Take care of anything that happens at the end of an episode (before reset)
     def end_of_episode(self):
+        if self.save_epsiode_animation:
+            make_gif(self.animation, "Episode_" + str(self.episode) + "_anim.gif")
+
         total_reward = sum(self.current_reward_sequence)
         print("Episode over, total reward: ", total_reward)
         if total_reward > self.best_reward:
-            print("Found new best reward! Overwriting old traces")
             self.best_reward = total_reward
             self.best_episode = self.episode
             self.best_action_sequence = copy(self.current_action_sequence)
             self.best_reward_sequence = copy(self.current_reward_sequence)
-            self.print_best()
+            if self.plot_best_episode_flag:
+                self.plot_best_episode()
 
 
-    def print_best(self):
-        print("Printing Best... The best episode was ", self.best_episode, " out of ", self.episode)
+    def plot_best_episode(self):
+        print("Plotting best episode (", self.best_episode, " out of ", self.episode, ")")
         fname = self.save_dir + "/performance_best_episode_"+str(self.episode)+".png"
-        print_trace(self.best_reward_sequence, self.best_action_sequence, str(self.episode) + " (current best)", fname)
+        plot_rewards_and_actions(self.best_reward_sequence, self.best_action_sequence, str(self.episode) + " (current best)", fname)
 
-    def print_current(self, fname = None):
+    def plot_latest_episode(self, fname = None):
         if fname is None:
             fname = self.save_dir + "/performance_episode_"+str(self.episode) + ".png"
-        print_trace(self.current_reward_sequence, self.current_action_sequence, str(self.episode), fname)
+        plot_rewards_and_actions(self.current_reward_sequence, self.current_action_sequence, str(self.episode), fname)
 
 
     # Return the state
     def reset(self):
-        if self.verbose:
-            print("Resetting...\n")
-        self.setup(self._cmd_args)
+        if self.verbose: print("Resetting...")
+        self.setup()
         return self.pyfr.get_state()
 
-    def finalize(self):
+    # init mpi
+    def init_mpi(self):
+        self.pyfr.init()
+
+    # Finalize mpi
+    def finalize_mpi(self):
         self.pyfr.finalize()
 
 

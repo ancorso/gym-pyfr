@@ -10,8 +10,22 @@ from monitor_callback import get_callback
 log_dir = "/home/anthonycorso/Dropbox/dqn_log"  #Change for different policies
 os.makedirs(log_dir, exist_ok=True)
 
-env = gym.make('gym-pyfr-v0', discrete = True, n=50, save_dir=log_dir) # change discrete setting for different policies
-env.setup(['restart', '-b', 'cuda','cylinder_visc.pyfrm', 'cyl-2d-p2-start.pyfrs', 'config.ini'])
+init_file = "../../init_states/re50_coarse_start1400.pyfrs"
+mesh_file = "../../meshes/cylinder_mesh_coarse.pyfrm"
+config_file = "../../configs/re50_coarse_start1400_config.ini"
+baseline_file = "../../baseline_solutions/re50_base.h5"
+backend = "openmp"
+
+env = gym.make('gym-pyfr-v0', discrete = True, n=50, save_dir=log_dir) # change discrete setting for
+env = gym.make('gym-pyfr-v0',
+                mesh_file = mesh_file,
+                init_file = init_file,
+                config_file = config_file,
+                baseline_file = baseline_file,
+                backend = backend,
+                discrete = True,
+                n=50,
+                save_dir=log_dir)
 env = Monitor(env, log_dir, allow_early_resets=True)
 # env = DummyVecEnv([lambda: env]) # uncomment for other policies
 

@@ -9,6 +9,7 @@ import h5py
 import json
 import glob
 import os
+import warnings
 
 import mpi4py.rc
 mpi4py.rc.initialize = False
@@ -113,11 +114,12 @@ class PyFRObj:
 
 
     def parse(self, cmd_args):
-        # Parse the arguments
         self.args = self.ap.parse_args(cmd_args)
 
+    def set_baseline(self, baseline_file):
+        self.baseline_file = baseline_file
+
     def process(self):
-        # Invoke the process method
         self.args.process(self.args)
 
 
@@ -133,8 +135,11 @@ class PyFRObj:
         # Define directory where solution snapshots should be saved
         self.save_dir = 'sol_data'
 
-        f = h5py.File('base.h5', 'r')
-        self.goal_state = np.array(f['sol_data']).flatten()
+        if self.baseline_file is not None:
+            f = h5py.File(self.baseline_file, 'r')
+            self.goal_state = np.array(f['sol_data']).flatten()
+        else:
+            self.goal_state = None
 
         # Initial omega
         self.solver.system.omega = 0
@@ -270,12 +275,21 @@ class PyFRObj:
         return (not self.solver.tlist)
 
     def get_reward(self, state):
+        if self.goal_state is None:
+            warnings.warn("Baseline file was not defined so no reward can be computed. returning 0")
+            return 0
         return - np.linalg.norm(self.goal_state - state.flatten())
 
 
     def finalize(self):
         # Finalise MPI
         MPI.Finalize()
+
+    def init(self):
+        # Manually initialise MPI
+        if not self.mpi_init:
+            self.mpi_init = True
+            MPI.Init()
 
 
     def _process_common(self, args, mesh, soln, cfg):
@@ -284,12 +298,6 @@ class PyFRObj:
             from pytools.prefork import enable_prefork
 
             enable_prefork()
-
-
-        # Manually initialise MPI
-        if not self.mpi_init:
-            self.mpi_init = True
-            # MPI.Init()
 
         # Ensure MPI is suitably cleaned up
         register_finalize_handler()
