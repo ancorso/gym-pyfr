@@ -27,6 +27,7 @@ from pyfr.readers.native import NativeReader
 from pyfr.solvers import get_solver
 from pyfr.util import subclasses
 from pyfr.writers import BaseWriter, get_writer_by_name, get_writer_by_extn
+from pyfr.writers.native import NativeWriter
 
 from mpi4py import MPI
 
@@ -177,6 +178,23 @@ class PyFRObj:
                 comm.bcast(cp[1:] if rank == mrank else None, root=mrank)
             )
 
+    def save_solution(self, savedir, basename, t = 0):
+        self.ndims = self.solver.system.ndims
+        self.nvars = self.solver.system.nvars
+        writer = NativeWriter(intg, nvars, savedir, basename)
+        fields = self.solver.system.elementscls.convarmap[ndims]
+        stats = Inifile()
+        stats.set('data', 'fields', ','.join(fields))
+        stats.set('data', 'prefix', 'soln')
+        self.solver.collect_stats(stats)
+
+        metadata = dict(self.solver.cfgmeta,
+                        stats=stats.tostr(),
+                        mesh_uuid=self.solver.mesh_uuid)
+        writer.write(self.solver.soln, metadata, t)
+
+
+
     def _process_samples(self, samps):
         samps = np.array(samps)
 
@@ -230,15 +248,6 @@ class PyFRObj:
                 # Append
                 data.append(row)
 
-            # Define info for saving to file
-            # list_of_files = glob.glob(self.save_dir + '/*')
-            # if len(list_of_files) == 0:
-            #     file_num = 0
-            # else:
-            #     latest_file = max(list_of_files, key=os.path.getctime)
-            #     file_num = int(latest_file[-7:-3])
-
-            # Save data in desired format
             # Define freestream values for to be used for cylinder
             rho = 1.0
             P = 1.0
@@ -251,14 +260,6 @@ class PyFRObj:
             for i in range(len(self.loc_to_idx)):
                 idx1, idx2 = self.loc_to_idx[i]
                 sol_data[idx1, idx2] = data[i][1]
-
-            # file_num += 1
-            # filename = self.save_dir + '/sol_data_' + str(file_num).zfill(4) + '.h5'
-            # f = h5py.File(filename, 'w')
-            # f['sol_data'] = sol_data
-            # f['control_input'] = self.last_action
-            # f['cost'] = np.linalg.norm(self.goal_state - sol_data.flatten())
-            # f.close()
 
         return sol_data
 
@@ -313,6 +314,9 @@ class PyFRObj:
 
 
     def process_run(self, args):
+        # can load from Inifile(string)
+        # can also use inifile.set(section, option, value) to set things
+        
         self._process_common(
             args, NativeReader(args.mesh), None, Inifile.load(args.cfg)
         )

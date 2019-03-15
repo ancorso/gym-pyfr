@@ -81,6 +81,21 @@ class PyFREnv(gym.Env):
         self.current_reward_sequence = []
         self.current_action_sequence = []
         self.animation = []
+        self.curr_state = self.pyfr.get_state()
+
+    def save_native(self, save_dir, basename, t = 0):
+        self.pyfr.save_solution(save_dir, basename, t)
+
+
+    def save_h5(self, basename, save_dir = None, t = 0):
+        if save_dir is None:
+            save_dir = self.save_dir
+        filename = save_dir + '/sol_data_' + str(t).zfill(4) + '.h5'
+        f = h5py.File(filename, 'w')
+        f['sol_data'] = self.curr_state
+        f['control_input'] = self.last_action
+        f['reward'] = self.get_reward(self.curr_state)
+        f.close()
 
 
     def step(self, action):
@@ -96,10 +111,10 @@ class PyFREnv(gym.Env):
         episode_over = self.pyfr.step()
 
         # Get the new state
-        ob = self.pyfr.get_state()
+        self.curr_state = self.pyfr.get_state()
 
         # Get the reward
-        reward = self.pyfr.get_reward(ob)
+        reward = self.pyfr.get_reward(self.curr_state)
 
         # No info yet
         info = {"timestep":self.pyfr.solver.tcurr}
@@ -110,7 +125,7 @@ class PyFREnv(gym.Env):
 
         # Plot if necessary
         if self.save_epsiode_animation and self.iteration % self.animation_period == 0:
-            self.animation.append(plot_state(ob, 2, "Y-Velocity at Iteration " + str(self.iteration)))
+            self.animation.append(plot_state(self.curr_state, 2, "Y-Velocity at Iteration " + str(self.iteration)))
 
         # update sequences and iterations
         self.iteration += 1
@@ -122,7 +137,7 @@ class PyFREnv(gym.Env):
             self.end_of_episode()
 
         # Return the results of the step
-        return ob, reward, episode_over, info
+        return self.curr_state, reward, episode_over, info
 
     # Take care of anything that happens at the end of an episode (before reset)
     def end_of_episode(self):
