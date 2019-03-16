@@ -7,37 +7,32 @@ from stable_baselines import DQN #Change for different policies
 from stable_baselines.bench import Monitor
 from monitor_callback import get_callback
 
-log_dir = "/home/anthonycorso/Dropbox/dqn_log"  #Change for different policies
+log_dir = "./dqn_log"  #Change for different policies
 os.makedirs(log_dir, exist_ok=True)
 
-init_file = "../../init_states/re50_coarse_start1400.pyfrs"
+init_file = "../../init_states/coarse/Re100_shedding.pyfrs" #change
 mesh_file = "../../meshes/cylinder_mesh_coarse.pyfrm"
-config_file = "../../configs/re50_coarse_start1400_config.ini"
-baseline_file = "../../baseline_solutions/re50_base.h5"
-backend = "openmp"
+baseline_file = "../../baseline_solutions/coarse/Re100_baseline.h5" #change
+backend = "cuda" # change
 
-env = gym.make('gym-pyfr-v0', discrete = True, n=50, save_dir=log_dir) # change discrete setting for
 env = gym.make('gym-pyfr-v0',
                 mesh_file = mesh_file,
                 init_file = init_file,
-                config_file = config_file,
                 baseline_file = baseline_file,
                 backend = backend,
                 discrete = True,
                 n=50,
-                save_dir=log_dir)
+                save_dir=log_dir,
+                Re = 100, #chnage
+                tend = 500,
+                dt = 0.5, #change
+                plot_best_episode = True,
+                action_multiplier = 0.03 #change
+                )
+
 env = Monitor(env, log_dir, allow_early_resets=True)
 # env = DummyVecEnv([lambda: env]) # uncomment for other policies
 
 model = DQN(CnnPolicy, env, verbose=1,buffer_size = 5000, prioritized_replay = True)
 model.learn(total_timesteps=1000000,callback=get_callback(log_dir)) #Dont forget to set timesteps appropriatley
 model.save(log_dir + "/pyfr-model-dqn")
-
-obs = env.reset()
-while True:
-    action, _states = model.predict(obs)
-    obs, rewards, dones, info = env.step(action)
-    if dones: break
-
-env.print_best()
-env.print_current(log_dir + "/final_episode_performance.png")
