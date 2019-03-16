@@ -10,6 +10,7 @@ from copy import copy
 import os
 import math
 import h5py
+import csv
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -32,9 +33,10 @@ class PyFREnv(gym.Env):
                 print_period = 100, # Frequency of printing stats when verbose is off
                 plot_best_episode = False, # Whether or not to plot the reward and action vs iteration and any new best rewards
                 save_epsiode_animation = False, # Whether or not to create an animation of each episode
-                animation_period = 1, # timesteps between animation frames
+                animation_period = 3, # timesteps between animation frames
                 Re = None, # reynolds number override
                 tend = None, # end time override
+                dt = 1, # interval between steps
                 write_state_files = False, # Whether or not to save the state files
                 write_state_period = 1 # Period of saving state files
                 ):
@@ -82,6 +84,7 @@ class PyFREnv(gym.Env):
         self.backend = backend
         self.Re = Re
         self.tend = tend
+        self.dt = dt
         self.setup()
 
 
@@ -112,7 +115,9 @@ class PyFREnv(gym.Env):
         # Setup the rest of the pyfr object
         self.pyfr.process()
         self.pyfr.setup_dataframe()
-        self.pyfr.solver.tlist = deque(range(int(self.pyfr.solver.tcurr), int(self.pyfr.solver.tlist[-1]) + 1))
+        ts = self.pyfr.solver.tcurr
+        te = self.pyfr.solver.tlist[-1]
+        self.pyfr.solver.tlist = deque(np.arange(ts, te + self.dt, self.dt))
 
         # reset per-epsiode parameters
         self.iteration = 0
@@ -219,6 +224,11 @@ class PyFREnv(gym.Env):
     def plot_best_episode(self):
         print("Plotting best episode (", self.best_episode, " out of ", self.episode, ")")
         fname = self.save_dir + "/performance_best_episode_"+str(self.episode)+".png"
+
+        # Save as csv
+        self.save_csv(fname.replace(".png", ".csv"), self.best_reward_sequence, self.best_action_sequence)
+
+        # Plot
         plot_rewards_and_actions(self.best_reward_sequence, self.best_action_sequence, str(self.episode) + " (current best)", fname)
 
 
@@ -226,7 +236,20 @@ class PyFREnv(gym.Env):
     def plot_current_episode(self, fname = None):
         if fname is None:
             fname = self.save_dir + "/performance_episode_"+str(self.episode) + ".png"
+
+        # Save data as CSV
+        self.save_csv(fname.replace(".png", ".csv"), self.current_reward_sequence, self.current_action_sequence)
+
+        # Plot
         plot_rewards_and_actions(self.current_reward_sequence, self.current_action_sequence, str(self.episode), fname)
+
+
+    def save_csv(self, fname, rewards, actions):
+        with open(fname, 'w', newline='') as csvfile:
+            wrt = csv.writer(csvfile, delimiter=',')
+            wrt.writerow(['Reward', 'Action'])
+            for i in range(len(actions)):
+                wrt.writerow([rewards[i], actions[i]])
 
 
     @staticmethod

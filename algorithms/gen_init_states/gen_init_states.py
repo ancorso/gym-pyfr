@@ -7,7 +7,7 @@ from mpi4py import MPI
 
 desired_Re_list = [50, 75, 100, 125, 150, 200]
 mesh_file = "../../meshes/cylinder_mesh_coarse.pyfrm"
-backend = "cuda"
+backend = "openmp"
 
 startup_Re = 100
 filename = 'cyl-2d-p2-000.pyfrs'
