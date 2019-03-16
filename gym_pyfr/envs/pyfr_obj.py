@@ -142,7 +142,7 @@ class PyFRObj:
 
         if self.baseline_file is not None:
             f = h5py.File(self.baseline_file, 'r')
-            self.goal_state = np.array(f['sol_data']).flatten()
+            self.goal_state = np.array(f['sol_data'])
         else:
             self.goal_state = None
 
@@ -284,7 +284,7 @@ class PyFRObj:
         if self.goal_state is None:
             warnings.warn("Baseline file was not defined so no reward can be computed. returning 0")
             return 0
-        return - np.linalg.norm(self.goal_state - state.flatten())
+        return - np.linalg.norm((self.goal_state - state).flatten())
 
 
     def finalize(self):

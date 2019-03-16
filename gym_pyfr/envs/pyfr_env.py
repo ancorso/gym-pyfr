@@ -71,7 +71,7 @@ class PyFREnv(gym.Env):
             if self.verbose: print("Initializing continuous action space with action_multiplier=",self.action_multiplier)
             self.action_space = spaces.Box(low=-2, high=2, shape=(1,), dtype=np.float64)
 
-        # Build the pyf object run run things on
+        # Build the pyf object
         self.pyfr = PyFRObj()
 
         # Setup the pyfr object
@@ -127,16 +127,21 @@ class PyFREnv(gym.Env):
         self.pyfr.save_solution(save_dir, basename, t)
 
 
-    def save_h5(self, basename = 'sol_data_', save_dir = None, t = 0):
+    @staticmethod
+    def save_h5(state, save_dir, filename = 'state.h5', action = 0, reward = 0, t = 0):
+        os.makedirs(save_dir, exist_ok=True)
+        filepath = save_dir + '/' + filename
+        f = h5py.File(filepath, 'w')
+        f['sol_data'] = state
+        f['control_input'] = action
+        f['reward'] = reward
+        f.close()
+
+    def save_curr_h5(self, basename = 'sol_data_', save_dir = None, t=0):
         if save_dir is None:
             save_dir = self.save_dir
-        os.makedirs(save_dir, exist_ok=True)
-        filename = save_dir + '/' + basename + str(int(t)).zfill(4) + '.h5'
-        f = h5py.File(filename, 'w')
-        f['sol_data'] = self.curr_state
-        f['control_input'] = self.pyfr.last_action
-        f['reward'] = self.curr_reward
-        f.close()
+        filename = basename + str(int(t)).zfill(4) + '.h5'
+        save_h5(self.curr_state, save_dir, filename, self.pyfr.last_action, self.curr_reward, t)
 
     # Run the simulation until it stops
     def run(self):
@@ -177,7 +182,7 @@ class PyFREnv(gym.Env):
 
         # Save output if necessary
         if self.write_state_files and self.iteration % self.write_state_period == 0:
-            self.save_h5(save_dir = self.save_dir + '/' + self.sol_dir, t = self.pyfr.solver.tcurr)
+            self.save_curr_h5(save_dir = self.save_dir + '/' + self.sol_dir, t = self.pyfr.solver.tcurr)
 
         # update sequences and iterations
         self.iteration += 1
@@ -224,9 +229,19 @@ class PyFREnv(gym.Env):
         plot_rewards_and_actions(self.current_reward_sequence, self.current_action_sequence, str(self.episode), fname)
 
 
+    @staticmethod
+    def plot_state(state, fname, dof = 2, title = 'Y-Velocity'):
+        plot_state(state, dof, title, outfile = fname)
+
+
     # Plot the current state of the system
-    def plot_state(self, fname, dof = 2, title = 'Y-Velocity'):
-        plot_state(self.curr_state, dof, title, outfile = fname)
+    def plot_curr_state(self, fname, dof = 2, title = 'Y-Velocity'):
+        self.plot_state(self.curr_state, fname, dof, title)
+
+
+    # Plot the baseline that is being used
+    def plot_baseline(self, fname, dof = 2, title = 'Y-Velocity'):
+        self.plot_state(self.pyfr.goal_state, fname, dof, title)
 
 
     # Return the state
