@@ -1,3 +1,5 @@
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 import numpy as np
@@ -33,7 +35,7 @@ def plot_state(state, dof, title, outfile = None):
 
     fig.canvas.draw()       # draw the canvas, cache the renderer
     w, h = fig.canvas.get_width_height()
-    image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8).reshape(2*h, 2*w, 3)
+    image = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8).reshape(h, w, 3)
     return image
 
 def make_gif(image_list, outfile):
