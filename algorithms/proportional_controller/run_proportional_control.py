@@ -4,16 +4,14 @@ import gym_pyfr
 from mpi4py import MPI
 # MPI.Init()
 
-init_file = "../../init_states/re50_coarse_start1400.pyfrs"
+init_file = "../../init_states/coarse/Re50_shedding.pyfrs"
 mesh_file = "../../meshes/cylinder_mesh_coarse.pyfrm"
-config_file = "../../configs/re50_coarse_start1400_config.ini"
-baseline_file = "../../baseline_solutions/re50_base.h5"
+baseline_file = "../../baseline_solutions/coarse/Re50_baseline.h5"
 backend = "openmp"
 
 env = gym.make('gym-pyfr-v0',
                 mesh_file = mesh_file,
                 init_file = init_file,
-                config_file = config_file,
                 baseline_file = baseline_file,
                 backend = backend,
                 save_epsiode_animation = True,
@@ -33,3 +31,5 @@ while True:
 
     if done: break
 
+env.save_gif('Re' + str(env.Re) + '_suppression_anim.gif')
+env.plot_current_episode('Re' + str(env.Re) + '_performance.png')

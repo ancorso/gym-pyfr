@@ -1,0 +1,154 @@
+diff --git a/pyfr/plugins/__init__.py b/pyfr/plugins/__init__.py
+index 3de3c10..500a070 100644
+--- a/pyfr/plugins/__init__.py
++++ b/pyfr/plugins/__init__.py
+@@ -1,6 +1,7 @@
+ # -*- coding: utf-8 -*-
+ 
+ from pyfr.plugins.base import BasePlugin
++from pyfr.plugins.controller import ControllerPlugin
+ from pyfr.plugins.dtstats import DtStatsPlugin
+ from pyfr.plugins.fluidforce import FluidForcePlugin
+ from pyfr.plugins.nancheck import NaNCheckPlugin
+diff --git a/pyfr/solvers/baseadvecdiff/system.py b/pyfr/solvers/baseadvecdiff/system.py
+index eff6eab..aab3b72 100644
+--- a/pyfr/solvers/baseadvecdiff/system.py
++++ b/pyfr/solvers/baseadvecdiff/system.py
+@@ -21,7 +21,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
+         if ('iint', 'copy_fpts') in kernels:
+             q1 << kernels['iint', 'copy_fpts']()
+         q1 << kernels['iint', 'con_u']()
+-        q1 << kernels['bcint', 'con_u'](t=t)
++        q1 << kernels['bcint', 'con_u'](t=t, omega=self.omega)
+         if ('eles', 'shocksensor') in kernels:
+             q1 << kernels['eles', 'shocksensor']()
+             q1 << kernels['mpiint', 'artvisc_fpts_pack']()
+@@ -49,7 +49,7 @@ class BaseAdvectionDiffusionSystem(BaseAdvectionSystem):
+         q1 << kernels['eles', 'tdisf']()
+         q1 << kernels['eles', 'tdivtpcorf']()
+         q1 << kernels['iint', 'comm_flux']()
+-        q1 << kernels['bcint', 'comm_flux'](t=t)
++        q1 << kernels['bcint', 'comm_flux'](t=t, omega=self.omega)
+ 
+         q2 << kernels['mpiint', 'vect_fpts_send']()
+         q2 << kernels['mpiint', 'vect_fpts_recv']()
+diff --git a/pyfr/solvers/euler/kernels/bcs/char-riem-inv.mako b/pyfr/solvers/euler/kernels/bcs/char-riem-inv.mako
+index 9e0d754..ed626af 100644
+--- a/pyfr/solvers/euler/kernels/bcs/char-riem-inv.mako
++++ b/pyfr/solvers/euler/kernels/bcs/char-riem-inv.mako
+@@ -4,7 +4,7 @@
+ <% gmo = c['gamma'] - 1.0 %>
+ <% gamma = c['gamma'] %>
+ 
+-<%pyfr:macro name='bc_rsolve_state' params='ul, nl, ur, ploc, t'>
++<%pyfr:macro name='bc_rsolve_state' params='ul, nl, ur, ploc, t, omega'>
+     fpdtype_t cs = sqrt(${gamma}*${c['p']}/${c['rho']});
+     fpdtype_t s = ${c['p']}*pow(${c['rho']}, -${gamma});
+     fpdtype_t ratio = cs*${2.0/gmo};
+diff --git a/pyfr/solvers/navstokes/inters.py b/pyfr/solvers/navstokes/inters.py
+index 801bd7e..80dfa59 100644
+--- a/pyfr/solvers/navstokes/inters.py
++++ b/pyfr/solvers/navstokes/inters.py
+@@ -105,11 +105,14 @@ class NavierStokesNoSlpIsotWallBCInters(NavierStokesBaseBCInters):
+     type = 'no-slp-isot-wall'
+     cflux_state = 'ghost'
+ 
+-    def __init__(self, *args, **kwargs):
+-        super().__init__(*args, **kwargs)
++    def __init__(self, be, lhs, elemap, cfgsect, cfg):
++        super().__init__(be, lhs, elemap, cfgsect, cfg)
+ 
+-        self._tpl_c['cpTw'], = self._eval_opts(['cpTw'])
+-        self._tpl_c['v'] = self._eval_opts('uvw'[:self.ndims], default='0')
++        tplc = self._exp_opts(
++            'uvw'[:self.ndims], lhs, default=dict(u='0', v='0', w='0')
++        )
++        tplc['cpTw'], = self._eval_opts(['cpTw'])
++        self._tpl_c.update(tplc)
+ 
+ 
+ class NavierStokesNoSlpAdiaWallBCInters(NavierStokesBaseBCInters):
+diff --git a/pyfr/solvers/navstokes/kernels/bccflux.mako b/pyfr/solvers/navstokes/kernels/bccflux.mako
+index 03f63d7..c2c6e76 100644
+--- a/pyfr/solvers/navstokes/kernels/bccflux.mako
++++ b/pyfr/solvers/navstokes/kernels/bccflux.mako
+@@ -15,6 +15,7 @@
+               nl='in fpdtype_t[${str(ndims)}]'
+               magnl='in fpdtype_t'
+               ploc='in fpdtype_t[${str(ndims)}]'
+-              t='scalar fpdtype_t'>
+-    ${pyfr.expand('bc_common_flux_state', 'ul', 'gradul', 'artviscl', 'nl', 'magnl', 'ploc', 't')};
++              t='scalar fpdtype_t'
++              omega='scalar fpdtype_t'>
++    ${pyfr.expand('bc_common_flux_state', 'ul', 'gradul', 'artviscl', 'nl', 'magnl', 'ploc', 't', 'omega')};
+ </%pyfr:kernel>
+diff --git a/pyfr/solvers/navstokes/kernels/bcconu.mako b/pyfr/solvers/navstokes/kernels/bcconu.mako
+index 97a0d92..b3416d3 100644
+--- a/pyfr/solvers/navstokes/kernels/bcconu.mako
++++ b/pyfr/solvers/navstokes/kernels/bcconu.mako
+@@ -9,6 +9,7 @@
+               ulout='out view fpdtype_t[${str(nvars)}]'
+               nlin='in fpdtype_t[${str(ndims)}]'
+               ploc='in fpdtype_t[${str(ndims)}]'
+-              t='scalar fpdtype_t'>
+-    ${pyfr.expand('bc_ldg_state', 'ulin', 'nlin', 'ulout', 'ploc', 't')};
++              t='scalar fpdtype_t'
++              omega='scalar fpdtype_t'>
++    ${pyfr.expand('bc_ldg_state', 'ulin', 'nlin', 'ulout', 'ploc', 't', 'omega')};
+ </%pyfr:kernel>
+diff --git a/pyfr/solvers/navstokes/kernels/bcs/ghost.mako b/pyfr/solvers/navstokes/kernels/bcs/ghost.mako
+index abe76b0..6a5ac15 100644
+--- a/pyfr/solvers/navstokes/kernels/bcs/ghost.mako
++++ b/pyfr/solvers/navstokes/kernels/bcs/ghost.mako
+@@ -6,10 +6,10 @@
+ 
+ <% tau = c['ldg-tau'] %>
+ 
+-<%pyfr:macro name='bc_common_flux_state' params='ul, gradul, artviscl, nl, magnl, ploc, t'>
++<%pyfr:macro name='bc_common_flux_state' params='ul, gradul, artviscl, nl, magnl, ploc, t, omega'>
+     // Viscous states
+     fpdtype_t ur[${nvars}], gradur[${ndims}][${nvars}];
+-    ${pyfr.expand('bc_ldg_state', 'ul', 'nl', 'ur', 'ploc', 't')};
++    ${pyfr.expand('bc_ldg_state', 'ul', 'nl', 'ur', 'ploc', 't', 'omega')};
+     ${pyfr.expand('bc_ldg_grad_state', 'ul', 'nl', 'gradul', 'gradur')};
+ 
+     fpdtype_t fvr[${ndims}][${nvars}] = {{0}};
+@@ -17,7 +17,7 @@
+     ${pyfr.expand('artificial_viscosity_add', 'gradur', 'fvr', 'artviscl')};
+ 
+     // Inviscid (Riemann solve) state
+-    ${pyfr.expand('bc_rsolve_state', 'ul', 'nl', 'ur', 'ploc', 't')};
++    ${pyfr.expand('bc_rsolve_state', 'ul', 'nl', 'ur', 'ploc', 't', 'omega')};
+ 
+     // Perform the Riemann solve
+     fpdtype_t ficomm[${nvars}], fvcomm;
+diff --git a/pyfr/solvers/navstokes/kernels/bcs/no-slp-isot-wall.mako b/pyfr/solvers/navstokes/kernels/bcs/no-slp-isot-wall.mako
+index 6bf7525..6b24363 100644
+--- a/pyfr/solvers/navstokes/kernels/bcs/no-slp-isot-wall.mako
++++ b/pyfr/solvers/navstokes/kernels/bcs/no-slp-isot-wall.mako
+@@ -2,19 +2,19 @@
+ <%namespace module='pyfr.backends.base.makoutil' name='pyfr'/>
+ <%include file='pyfr.solvers.navstokes.kernels.bcs.common'/>
+ 
+-<%pyfr:macro name='bc_rsolve_state' params='ul, nl, ur, ploc, t'>
++<%pyfr:macro name='bc_rsolve_state' params='ul, nl, ur, ploc, t, omega'>
+     ur[0] = ul[0];
+-% for i, v in enumerate(c['v']):
+-    ur[${i + 1}] = -ul[${i + 1}] + ${2*v}*ul[0];
++% for i, v in enumerate('uvw'[:ndims]):
++    ur[${i + 1}] = -ul[${i + 1}] + 2*${c[v]}*ul[0];
+ % endfor
+     ur[${nvars - 1}] = ${c['cpTw']/c['gamma']}*ur[0]
+                      + 0.5*(1.0/ur[0])*${pyfr.dot('ur[{i}]', i=(1, ndims + 1))};
+ </%pyfr:macro>
+ 
+-<%pyfr:macro name='bc_ldg_state' params='ul, nl, ur, ploc, t'>
++<%pyfr:macro name='bc_ldg_state' params='ul, nl, ur, ploc, t, omega'>
+     ur[0] = ul[0];
+-% for i, v in enumerate(c['v']):
+-    ur[${i + 1}] = ${v}*ul[0];
++% for i, v in enumerate('uvw'[:ndims]):
++    ur[${i + 1}] = ${c[v]}*ul[0];
+ % endfor
+     ur[${nvars - 1}] = ${c['cpTw']/c['gamma']}*ur[0]
+                      + 0.5*(1.0/ur[0])*${pyfr.dot('ur[{i}]', i=(1, ndims + 1))};
