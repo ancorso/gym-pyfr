@@ -1,15 +1,3 @@
-diff --git a/pyfr/plugins/__init__.py b/pyfr/plugins/__init__.py
-index 3de3c10..500a070 100644
---- a/pyfr/plugins/__init__.py
-+++ b/pyfr/plugins/__init__.py
-@@ -1,6 +1,7 @@
- # -*- coding: utf-8 -*-
- 
- from pyfr.plugins.base import BasePlugin
-+from pyfr.plugins.controller import ControllerPlugin
- from pyfr.plugins.dtstats import DtStatsPlugin
- from pyfr.plugins.fluidforce import FluidForcePlugin
- from pyfr.plugins.nancheck import NaNCheckPlugin
 diff --git a/pyfr/solvers/baseadvecdiff/system.py b/pyfr/solvers/baseadvecdiff/system.py
 index eff6eab..aab3b72 100644
 --- a/pyfr/solvers/baseadvecdiff/system.py

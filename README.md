@@ -39,5 +39,4 @@ The following are the options available when constructing a gym-pyfr environment
 * `tend = None` - end time override
 * `write_state_files = False` -  Whether or not to save the state files
 * `write_state_period = 1` -  Period of saving state files
-*
 

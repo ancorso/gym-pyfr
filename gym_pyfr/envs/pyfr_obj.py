@@ -148,7 +148,6 @@ class PyFRObj:
 
         # Initial omega
         self.solver.system.omega = 0
-        self.last_action = 0
 
         # MPI info
         comm, rank, root = get_comm_rank_root()
@@ -213,7 +212,6 @@ class PyFRObj:
     def take_action(self, omega):
         comm, rank, root = get_comm_rank_root()
         self.solver.system.omega = float(comm.bcast(omega, root=root))
-        self.last_action = omega
 
 
     def get_state(self):
@@ -271,6 +269,7 @@ class PyFRObj:
 
 
     def step(self):
+        if len(self.solver.tlist) == 0: print("Error:  tlist was empty")
         while self.solver.tlist[0] <= self.solver.tcurr:
             self.solver.advance_to(self.solver.tlist[0])
             self.solver.tlist.popleft()
