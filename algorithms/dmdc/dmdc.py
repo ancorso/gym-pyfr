@@ -10,7 +10,11 @@ def normalized_singular_values(X):
 # Rounds up to the closest even number
 def num_modes(S, retained_energy):
     r = np.argmax(np.cumsum(S[1:]**2) / np.sum(S[1:]**2) > retained_energy)
-    return int(math.ceil((r+1)/2)*2)
+    if r == 0: 
+        r = S[1:].shape[0]
+
+    modes = min(S.shape[0],  int(math.ceil((r+1)/2)*2))
+    return modes
 
 # Compute the dynamic mode decomposition with control
 def DMDc(O, Xp, retained_energy = 0.99, num_modes_override = None):
@@ -44,7 +48,8 @@ def DMDc(O, Xp, retained_energy = 0.99, num_modes_override = None):
 
     new_U_hat = (Xp @ V_til @ S_inv) @ (U_1.T @ U_hat)
     P =  new_U_hat @ W
-    transform = np.linalg.pinv(new_U_hat)
+    # transform = np.linalg.pinv(new_U_hat)
+    transform = np.transpose(U_hat)
 
     return A, B, P, W, transform
 

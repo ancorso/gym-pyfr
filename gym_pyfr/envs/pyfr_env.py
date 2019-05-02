@@ -301,7 +301,7 @@ class PyFREnv(gym.Env):
         if save_dir is None:
             save_dir = self.save_dir
         filename = basename + str(int(t)).zfill(4) + '.h5'
-        save_h5(self.curr_state, save_dir, filename, self.last_action, self.curr_reward, t)
+        PyFREnv.save_h5(self.curr_state, save_dir, filename, self.last_action, self.curr_reward, t)
 
 
 
