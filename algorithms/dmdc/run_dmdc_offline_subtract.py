@@ -20,7 +20,7 @@ neg_during = np.concatenate([np.arange(400,500), np.arange(600, 650)])
 retained_energy = 0.99
 
 # MPC params
-R = 1e2
+R = 1e1
 T = 16
 u_max = 0.1
 test_interval = 600
@@ -68,25 +68,7 @@ print("+*+*+*+*+*+*+* Performing DMDc # 1 Fist with all retained energy +**+*+*+
 Omega = np.vstack((env.state_buffer[:, :-1], np.expand_dims(env.action_buffer[:-1], axis = 0)))
 Xp = env.state_buffer[:,1:]
 
-print("Omega shape: ", Omega.shape, " Xp shape: ", Xp.shape)
-
-A100, B100, P100, W100, transform100 = DMDc(Omega, Xp, retained_energy = 1)
-Bfull100 = np.dot(np.linalg.pinv(transform100), B100)
-
-print("SHAPES -- A100: ", A100.shape, " B100: ", B100.shape, " P100: ", P100.shape, " W100: ", W100.shape, " transform100: ", transform100.shape)
-print("retained modes from A shape: ", A100.shape[0])
-
-# Plot the B matrix for the training
-if np.sum(B100) == 0:
-    print("B100 was uniformly 0, not plotting it")
-else:
-    B_plot100 = Bfull100.reshape((128, 256, 4))
-    env.plot_state(B_plot100, save_dir + "B_100_rho.png", dof = 0, title = "Control Response - Density")
-    env.plot_state(B_plot100, save_dir + "B_100_vx.png", dof = 1, title = "Control Response - Vx")
-    env.plot_state(B_plot100, save_dir + "B_100_vy.png", dof = 2, title = "Control Response - Vy")
-    env.plot_state(B_plot100, save_dir + "B_100_E.png", dof = 3, title = "Control Response - Energy")
-
-print("Performing DMDc with 0.99 retained energy for direct comparison")
+print("Performing DMDc with ", retained_energy, " retained energy for direct comparison")
 Au, Bu, Pu, Wu, transformu = DMDc(Omega, Xp, retained_energy = retained_energy)
 Bufull = np.dot(np.linalg.pinv(transformu), Bu)
 
@@ -98,10 +80,10 @@ if np.sum(Bu) == 0:
     print("Bu was uniformly 0, not plotting it")
 else:
     Bu_plot = Bufull.reshape((128, 256, 4))
-    env.plot_state(Bu_plot, save_dir + "B_99_rho.png", dof = 0, title = "Control Response - Density")
-    env.plot_state(Bu_plot, save_dir + "B_99_vx.png", dof = 1, title = "Control Response - Vx")
-    env.plot_state(Bu_plot, save_dir + "B_99_vy.png", dof = 2, title = "Control Response - Vy")
-    env.plot_state(Bu_plot, save_dir + "B_99_E.png", dof = 3, title = "Control Response - Energy")
+    env.plot_state(Bu_plot, save_dir + "B_" + str(retained_energy) + "_rho.png", dof = 0, title = "Control Response - Density")
+    env.plot_state(Bu_plot, save_dir + "B_" + str(retained_energy) + "_vx.png", dof = 1, title = "Control Response - Vx")
+    env.plot_state(Bu_plot, save_dir + "B_" + str(retained_energy) + "_vy.png", dof = 2, title = "Control Response - Vy")
+    env.plot_state(Bu_plot, save_dir + "B_" + str(retained_energy) + "_E.png", dof = 3, title = "Control Response - Energy")
 
 ##################### Generate Training data #2 ########################
 print("+*+*+*+*+*+*+*+* Generating Training Data - round 2 *+*+*+*+*+*+*+*+*")
@@ -122,7 +104,7 @@ env.plot_current_episode(save_dir + "training_data2.png")
 ################## Perfrom the DMDc #2 ##############################
 print("+*+*+*+*+*+*+* Performing DMDc round 2 (with B subtracted off) +**+*+*+*+*+*+*+*+*+*+*")
 
-Bsub = Bfull100
+Bsub = Bufull
 Omega = np.vstack((env.state_buffer[:, :-1], np.zeros((1, env.action_buffer.shape[0]-1))))
 GB = np.expand_dims(env.action_buffer[:-1], axis = 0) * Bsub
 Xp = env.state_buffer[:,1:] - GB

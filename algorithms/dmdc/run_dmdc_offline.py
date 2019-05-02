@@ -21,7 +21,7 @@ retained_energy = 0.99
 
 # MPC params
 R = 1e1
-T = 16
+T = 200
 u_max = 0.1
 test_interval = 600
 
