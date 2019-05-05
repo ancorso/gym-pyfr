@@ -10,7 +10,7 @@ import os
 ############# Common update params between runs ###############
 # Training setup
 reynolds_number = 50
-save_dir = "DMDc_Re" + str(reynolds_number) + "_Offline_Testcase_newP/"
+save_dir = "DMDc_Re" + str(reynolds_number) + "_offline_T200/"
 dt = 1
 training_data_interval = 700
 pos_during = np.concatenate([np.arange(100,200), np.arange(300, 350)])
@@ -51,7 +51,7 @@ env.tend = env.buffer_size
 state = env.reset()
 
 omega_abs = 0.1
-for i in range(env.buffer_size-1):
+for i in range(env.buffer_size):
     omega = 0
     if i in pos_during:
         omega = omega_abs

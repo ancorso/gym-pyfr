@@ -17,7 +17,7 @@ pos_during = np.concatenate([np.arange(100,200), np.arange(300, 350)])
 neg_during = np.concatenate([np.arange(400,500), np.arange(600, 650)])
 
 # DMDc considerations
-retained_energy = 0.99
+retained_energy = 0.999
 
 # MPC params
 R = 1e1
@@ -52,7 +52,7 @@ env.tend = env.buffer_size
 state = env.reset()
 
 omega_abs = 0.1
-for i in range(env.buffer_size-1):
+for i in range(env.buffer_size):
     omega = 0
     if i in pos_during:
         omega = omega_abs
