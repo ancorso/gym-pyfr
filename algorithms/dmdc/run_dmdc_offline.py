@@ -8,8 +8,13 @@ import numpy as np
 import os
 
 ############# Common update params between runs ###############
+# Important note. A working example can be generated with 
+# retained energy = 0.99, 
+# R = 1e1
+# T = 26
+
 # Training setup
-reynolds_number = 50
+reynolds_number = 75
 save_dir = "DMDc_Re" + str(reynolds_number) + "_offline_T200/"
 dt = 1
 training_data_interval = 700
