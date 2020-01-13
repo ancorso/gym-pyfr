@@ -146,7 +146,11 @@ class PyFRObj:
         else:
             self.goal_state = None
 
-        # Initial omega
+        # Initial jet velocities
+        self.solver.system.vjtop = 0
+        self.solver.system.vjbottom = 0
+
+        # # Initial omega
         self.solver.system.omega = 0
 
         # MPI info
@@ -209,9 +213,14 @@ class PyFRObj:
 
         return samps.tolist()
 
-    def take_action(self, omega):
+    def take_action(self, action):
         comm, rank, root = get_comm_rank_root()
-        self.solver.system.omega = float(comm.bcast(omega, root=root))
+        self.solver.system.vjtop = float(comm.bcast(action[0], root=root))
+        self.solver.system.vjbottom = float(comm.bcast(action[1], root=root))
+
+    # def take_action(self, omega):
+    #     comm, rank, root = get_comm_rank_root()
+    #     self.solver.system.omega = float(comm.bcast(omega, root=root))
 
 
     def get_state(self):

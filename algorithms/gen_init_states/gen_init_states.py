@@ -5,8 +5,10 @@ import os
 from mpi4py import MPI
 # MPI.Init()
 
-desired_Re_list = [50, 75, 100, 125, 150, 200]
+# desired_Re_list = [50, 75, 100, 125, 150, 200]
+desired_Re_list = [50]
 mesh_file = "../../meshes/cylinder_mesh_coarse.pyfrm"
+mesh_file = "../../meshes/cylinder_mesh_jets_coarse.pyfrm"
 backend = "openmp"
 
 startup_Re = 100
@@ -15,7 +17,8 @@ for desired_Re in desired_Re_list:
     print('Generating shedding for Re = ', startup_Re, '...')
     env = gym.make('gym-pyfr-v0',
                     mesh_file = mesh_file,
-                    baseline_file = "../../baseline_solutions/re50_base.h5",
+                    config_file = "../../gym_pyfr/envs/config_base_jets_solid.ini",
+                    baseline_file = "../../baseline_solutions/coarse/re50_baseline.h5",
                     backend = backend,
                     save_epsiode_animation = True,
                     animation_period = 3,

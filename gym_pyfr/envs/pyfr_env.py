@@ -73,6 +73,8 @@ class PyFREnv(gym.Env):
         self.n_states = np.prod(self.obs_shape)
 
         if discrete:
+            print("WARNING: JETS NOT CONFIGURED FOR DISCRETE ACTION SPACES")
+            exit()
             if self.verbose: print("Initializing discrete action space with n=",n)
             self.action_space = spaces.Discrete(n)
         else:
@@ -125,9 +127,12 @@ class PyFREnv(gym.Env):
         # Setup the rest of the pyfr object
         self.pyfr.process()
         self.pyfr.setup_dataframe()
+        self.state_buffer = None
+        self.action_buffer = None
         if self.buffer_size > 0:
             self.state_buffer = np.zeros((self.n_states, self.buffer_size))
-            self.action_buffer = np.zeros(self.buffer_size)
+            # TODO: Generalize action dimeniosn
+            self.action_buffer = np.zeros((2, self.buffer_size))
         ts = self.pyfr.solver.tcurr
         te = self.pyfr.solver.tlist[-1]
         self.pyfr.solver.tlist = deque(np.arange(ts, te + self.dt, self.dt))
@@ -138,13 +143,13 @@ class PyFREnv(gym.Env):
         self.current_action_sequence = []
         self.animation = []
         self.curr_state = self.pyfr.get_state()
-        self.last_action = 0
+        self.last_action = [0,0]
         self.curr_reward = self.reward()
 
     def reward(self):
         if self.reward_fn is not None: return self.reward_fn(self.curr_state)
         else: return self.pyfr.get_reward(self.curr_state)
-    # Return the state
+
     def reset(self):
         if self.verbose: print("Resetting...")
         self.setup()
@@ -203,7 +208,7 @@ class PyFREnv(gym.Env):
     def append_buffer(self):
         if self.state_buffer is not None:
             self.state_buffer = np.hstack((self.state_buffer[:,1:], np.expand_dims(self.curr_state.flatten(), axis = 1)))
-            self.action_buffer = np.append(self.action_buffer[1:], [self.last_action])
+            self.action_buffer = np.hstack((self.action_buffer[:,1:], np.expand_dims(self.last_action, axis = 1)))
 
     # Take care of anything that happens at the end of an episode (before reset)
     def end_of_episode(self):
@@ -220,7 +225,7 @@ class PyFREnv(gym.Env):
     # Run the simulation until it stops
     def run(self):
         while True:
-            _, _, done, _ = self.step(0)
+            _, _, done, _ = self.step(np.array([0.,0.]))
             if done: break
     ######################################################################
     #                       Plotting Functionality                       #
@@ -277,9 +282,10 @@ class PyFREnv(gym.Env):
     def save_csv(self, fname, rewards, actions):
         with open(fname, 'w', newline='') as csvfile:
             wrt = csv.writer(csvfile, delimiter=',')
-            wrt.writerow(['Reward', 'Action'])
+            wrt.writerow(['Reward', 'A1', 'A2'])
             for i in range(len(actions)):
-                wrt.writerow([rewards[i], actions[i]])
+                a = actions[i]
+                wrt.writerow([rewards[i], a[0], a[1]])
 
     # Save pyfr solution file for resart
     def save_native(self, save_dir, basename, t = 0):
@@ -287,7 +293,7 @@ class PyFREnv(gym.Env):
 
     # Save statespace as an h5 file
     @staticmethod
-    def save_h5(state, save_dir, filename = 'state.h5', action = 0, reward = 0, t = 0):
+    def save_h5(state, save_dir, filename = 'state.h5', action = [0,0], reward = 0, t = 0):
         os.makedirs(save_dir, exist_ok=True)
         filepath = save_dir + '/' + filename
         f = h5py.File(filepath, 'w')

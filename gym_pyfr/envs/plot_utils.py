@@ -9,13 +9,15 @@ def plot_rewards_and_actions(rewards, actions, episode_str, filename):
     plt.figure(figsize=(20,10))
     plt.subplot(1,2,1)
     plt.plot(range(len(rewards)), rewards)
-    plt.title('Episode ' + episode_str + ' Reward')
+    plt.title('Episode ' + episode_str + ' Rewards')
     plt.xlabel('Iteration')
     plt.ylabel('Reward')
 
     plt.subplot(1,2,2)
-    plt.plot(range(len(actions)), actions)
-    plt.title('Episode ' + episode_str + ' Action')
+    plt.plot(range(len(actions)), [a[0] for a in actions], label="a1")
+    plt.plot(range(len(actions)), [a[1] for a in actions], label="a2")
+    plt.legend()
+    plt.title('Episode ' + episode_str + ' Actions')
     plt.xlabel('Iteration')
     plt.ylabel('Action')
 
